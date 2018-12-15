@@ -1,3 +1,4 @@
+#include <Servo.h>
 #include <Stepper.h>
 
 const int ledPin = 13;
@@ -10,8 +11,10 @@ boolean readInProgress = false;
 boolean newDataFromPC = false;
 byte coordinates[3];
 int radius = 0, angle = 0, shape = 0;
-int offset = 60;
+int oldRadius = 0, oldAngle = 0, force = 0;
+int offset = 280;
 Stepper rotate(200,8,9,10,11);
+Servo magnet;
 
 void setup() //Setup Stuff
 {
@@ -24,6 +27,7 @@ void setup() //Setup Stuff
   pinMode(6, OUTPUT);
   pinMode(7, OUTPUT);
   rotate.setSpeed(2);
+  magnet.attach(12);
   goHome();
   NOMAGNETEYES();
 }
@@ -42,8 +46,10 @@ void loop()
     horzontialForwards(radius);
 
     //Grab the shape
+    magnet.write(0);
     MAGNETEYES();
-    delay(1000);
+    delay(1500);
+
     
     //Moving home
     goHome();
@@ -61,6 +67,7 @@ void loop()
 //Return the arm to the Home position
 void goHome()
 {
+  magnet.write(90);
   horzontialBackwards();
   while(digitalRead(2) == LOW)
   {
@@ -84,7 +91,7 @@ void NOMAGNETEYES()
 void horzontialForwards(int duration)
 {
   //Scale the duration into the correct movement time
-  duration = duration * 200;
+  duration = duration * 100;
   digitalWrite(6, HIGH);
   digitalWrite(7, LOW);
   delay(duration);
@@ -93,7 +100,7 @@ void horzontialForwards(int duration)
 void horzontialBackwards(int duration)
 {
   //Scale the duration into the correct movement time
-  duration = duration * 200;
+  duration = duration * 100;
   digitalWrite(6, LOW);
   digitalWrite(7, HIGH);
   delay(duration);
@@ -128,13 +135,13 @@ void dropOff(int polygon)
 void Triangle()
 {
   NOMAGNETEYES();
-  delay(100);
+  delay(500);
 }
 void Rectangle()
 {
   rotate.step(-1 * offset);
   NOMAGNETEYES();
-  delay(100);
+  delay(500);
   goHome();
 }
 
@@ -159,7 +166,10 @@ void getDataFromPC()
     newDataFromPC = true;
     radius = Serial.parseInt();
     angle = Serial.parseInt();
-    angle = angle - 10;
+    shape = Serial.parseInt();
+    angle = (-1 * angle) - 0;
+    Serial.println(radius);
+    Serial.println(angle);
   }
   */
   
@@ -181,7 +191,8 @@ void getDataFromPC()
       radius = (int)coordinates[0];
       angle = (int)coordinates[1];
       shape = (int)coordinates[2];
-      angle = (-1 * angle) - 20;
+      angle = (-2 * angle) - 20;
+      //BruteForce(radius, angle);
     }
     
     if(readInProgress)
@@ -201,4 +212,27 @@ void getDataFromPC()
     }
   }
   //*/
+}
+
+//Function to increment the angle if the coordante is similar to the last, in order to try and grab trouble spots
+void BruteForce(int RCoord, int ACoord)
+{
+  if(force < 3)
+  {
+    if(RCoord < oldRadius + 10 && RCoord > oldRadius - 10)
+    {
+      if(ACoord < oldAngle + 10 && ACoord > oldAngle - 10)
+      {
+        angle = angle + 5;
+        force++;
+      }
+    }
+    
+    else
+    {
+      force = 0;
+      oldRadius = RCoord;
+      oldAngle = ACoord;
+    }
+  }
 }
